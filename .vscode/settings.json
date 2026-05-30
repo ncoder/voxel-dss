@@ -1,0 +1,14 @@
+{
+  "workbench.colorCustomizations": {
+    "editor.background": "#1e232b",
+    "tab.activeBackground": "#1e232b",
+    "tab.inactiveBackground": "#1a1e26",
+    "sideBar.background": "#1a1e26",
+    "editorGroupHeader.tabsBackground": "#1a1e26",
+    "activityBar.background": "#39273B",
+    "titleBar.activeBackground": "#503753",
+    "titleBar.activeForeground": "#FBFAFB",
+    "titleBar.inactiveBackground": "#39273B",
+    "titleBar.inactiveForeground": "#FBFAFB"
+  }
+}
