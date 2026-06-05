@@ -1,5 +1,14 @@
-import { Vector3 } from "three";
 import type { VoxelData } from "./VoxelData";
+import type { Vec3 } from "./vec3";
+import {
+  addScaledVec3,
+  cloneVec3,
+  lengthSq,
+  normalize,
+  setVec3,
+  subVec3,
+  vec3,
+} from "./vec3";
 
 /**
  * Derived Surface Shading (DSS).
@@ -40,7 +49,7 @@ function gaussianWeight(dx: number, dy: number, dz: number, r: number): number {
  * A fresh cache should be created whenever the volume or DSS settings change.
  */
 export class NormalFieldCache {
-  private cache = new Map<number, Vector3>();
+  private cache = new Map<number, Vec3>();
 
   constructor(
     private readonly data: VoxelData,
@@ -51,7 +60,7 @@ export class NormalFieldCache {
     return (x << 16) | (y << 8) | z;
   }
 
-  get(x: number, y: number, z: number): Vector3 {
+  get(x: number, y: number, z: number): Vec3 {
     const k = this.key(x, y, z);
     let n = this.cache.get(k);
     if (!n) {
@@ -61,27 +70,28 @@ export class NormalFieldCache {
     return n;
   }
 
-  private computeBaseNormal(x: number, y: number, z: number): Vector3 {
+  private computeBaseNormal(x: number, y: number, z: number): Vec3 {
     const n =
       this.settings.field === "centroid"
         ? this.computeCentroidNormal(x, y, z)
         : this.computeGradientNormal(x, y, z);
 
-    if (n.lengthSq() < 1e-4) {
+    if (lengthSq(n) < 1e-4) {
       // Fall back to the direction away from the volume center.
-      n.set(
+      setVec3(
+        n,
         x - this.data.dims.x / 2,
         y - this.data.dims.y / 2,
         z - this.data.dims.z / 2,
       );
-      if (n.lengthSq() < 1e-4) n.set(0, 1, 0);
+      if (lengthSq(n) < 1e-4) setVec3(n, 0, 1, 0);
     }
-    return n.normalize();
+    return normalize(n);
   }
 
-  private computeCentroidNormal(x: number, y: number, z: number): Vector3 {
+  private computeCentroidNormal(x: number, y: number, z: number): Vec3 {
     const r = this.settings.kernelRadius;
-    const centroid = new Vector3(0, 0, 0);
+    const centroid = vec3(0, 0, 0);
     let total = 0;
 
     for (let dx = -r; dx <= r; dx++)
@@ -96,9 +106,11 @@ export class NormalFieldCache {
           total += w;
         }
 
-    if (total <= 1e-4) return new Vector3(0, 0, 0);
-    centroid.multiplyScalar(1 / total);
-    return new Vector3(x, y, z).sub(centroid);
+    if (total <= 1e-4) return vec3(0, 0, 0);
+    centroid.x /= total;
+    centroid.y /= total;
+    centroid.z /= total;
+    return subVec3(vec3(), vec3(x, y, z), centroid);
   }
 
   private smoothedDensity(x: number, y: number, z: number, axisToIgnore: number): number {
@@ -120,7 +132,7 @@ export class NormalFieldCache {
     return total > 0 ? sum / total : 0;
   }
 
-  private computeGradientNormal(x: number, y: number, z: number): Vector3 {
+  private computeGradientNormal(x: number, y: number, z: number): Vec3 {
     const r = this.settings.kernelRadius;
     const nx =
       this.smoothedDensity(x - r, y, z, 0) - this.smoothedDensity(x + r, y, z, 0);
@@ -128,7 +140,7 @@ export class NormalFieldCache {
       this.smoothedDensity(x, y - r, z, 1) - this.smoothedDensity(x, y + r, z, 1);
     const nz =
       this.smoothedDensity(x, y, z - r, 2) - this.smoothedDensity(x, y, z + r, 2);
-    return new Vector3(nx, ny, nz);
+    return vec3(nx, ny, nz);
   }
 
   /**
@@ -140,13 +152,13 @@ export class NormalFieldCache {
     vy: number,
     vz: number,
     corner: [number, number, number],
-    fallback: Vector3,
-  ): Vector3 {
+    fallback: Vec3,
+  ): Vec3 {
     const sx = corner[0] > 0 ? 1 : -1;
     const sy = corner[1] > 0 ? 1 : -1;
     const sz = corner[2] > 0 ? 1 : -1;
 
-    const acc = new Vector3(0, 0, 0);
+    const acc = vec3(0, 0, 0);
     let total = 0;
 
     for (const ox of [0, sx])
@@ -158,11 +170,11 @@ export class NormalFieldCache {
           if (!this.data.isSolid(nx, ny, nz)) continue;
           const n = this.get(nx, ny, nz);
           const w = ox === 0 && oy === 0 && oz === 0 ? 1.5 : 1.0;
-          acc.addScaledVector(n, w);
+          addScaledVec3(acc, n, w);
           total += w;
         }
 
-    if (total <= 1e-4 || acc.lengthSq() < 1e-4) return fallback.clone();
-    return acc.normalize();
+    if (total <= 1e-4 || lengthSq(acc) < 1e-4) return cloneVec3(fallback);
+    return normalize(acc);
   }
 }

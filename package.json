@@ -1,8 +1,14 @@
 {
-  "name": "voxel-surface-normals",
+  "name": "voxel-dss",
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "main": "src/voxel/index.ts",
+  "types": "src/voxel/index.ts",
+  "exports": {
+    ".": "./src/voxel/index.ts",
+    "./src/voxel/*": "./src/voxel/*"
+  },
   "description": "A voxel editor with Derived Surface Shading (DSS), with a MagicaVoxel-inspired UX.",
   "scripts": {
     "dev": "vite",
